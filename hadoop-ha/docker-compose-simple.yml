@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Zookeeper集群
+  zookeeper1:
+    image: zookeeper:3.6.3
+    hostname: zookeeper1
+    container_name: zookeeper1
+    volumes:
+      - zoo1-data:/data
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.10
+
+  zookeeper2:
+    image: zookeeper:3.6.3
+    hostname: zookeeper2
+    container_name: zookeeper2
+    volumes:
+      - zoo2-data:/data
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.11
+
+  zookeeper3:
+    image: zookeeper:3.6.3
+    hostname: zookeeper3
+    container_name: zookeeper3
+    volumes:
+      - zoo3-data:/data
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.12
+
+  # JournalNode集群
+  journalnode1:
+    image: apache/hadoop:3.3.6
+    hostname: journalnode1
+    container_name: journalnode1
+    user: root
+    command: /bin/bash -c "mkdir -p /opt/hadoop/journal && chmod 777 /opt/hadoop/journal && su -c 'hdfs journalnode' hadoop"
+    volumes:
+      - ./config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./config/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - journal1:/opt/hadoop/journal
+    depends_on:
+      - zookeeper1
+      - zookeeper2
+      - zookeeper3
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.20
+
+  journalnode2:
+    image: apache/hadoop:3.3.6
+    hostname: journalnode2
+    container_name: journalnode2
+    user: root
+    command: /bin/bash -c "mkdir -p /opt/hadoop/journal && chmod 777 /opt/hadoop/journal && su -c 'hdfs journalnode' hadoop"
+    volumes:
+      - ./config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./config/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - journal2:/opt/hadoop/journal
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.21
+
+  journalnode3:
+    image: apache/hadoop:3.3.6
+    hostname: journalnode3
+    container_name: journalnode3
+    user: root
+    command: /bin/bash -c "mkdir -p /opt/hadoop/journal && chmod 777 /opt/hadoop/journal && su -c 'hdfs journalnode' hadoop"
+    volumes:
+      - ./config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./config/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - journal3:/opt/hadoop/journal
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.22
+
+networks:
+  hadoop-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
+
+volumes:
+  zoo1-data:
+  zoo2-data:
+  zoo3-data:
+  journal1:
+  journal2:
+  journal3: 

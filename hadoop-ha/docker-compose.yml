@@ -1,0 +1,210 @@
+services:
+  # ZooKeeper Cluster (Quorum Service)
+  zookeeper1:
+    image: zookeeper:3.6.3
+    hostname: zookeeper1
+    container_name: zookeeper1
+    volumes:
+      - zoo1-data:/data
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.10
+
+  zookeeper2:
+    image: zookeeper:3.6.3
+    hostname: zookeeper2
+    container_name: zookeeper2
+    volumes:
+      - zoo2-data:/data
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.11
+
+  zookeeper3:
+    image: zookeeper:3.6.3
+    hostname: zookeeper3
+    container_name: zookeeper3
+    volumes:
+      - zoo3-data:/data
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.12
+
+  # JournalNode Cluster (Log Synchronization)
+  journalnode1:
+    image: apache/hadoop:3.3.6
+    hostname: journalnode1
+    container_name: journalnode1
+    user: "0:0"  # Run as root to avoid permission issues
+    command: /bin/bash -c "mkdir -p /opt/hadoop/journal && chmod 755 /opt/hadoop/journal && hdfs journalnode"
+    volumes:
+      - ./config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./config/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - journal1:/opt/hadoop/journal
+    depends_on:
+      - zookeeper1
+      - zookeeper2
+      - zookeeper3
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.20
+
+  journalnode2:
+    image: apache/hadoop:3.3.6
+    hostname: journalnode2
+    container_name: journalnode2
+    user: "0:0"  # Run as root to avoid permission issues
+    command: /bin/bash -c "mkdir -p /opt/hadoop/journal && chmod 755 /opt/hadoop/journal && hdfs journalnode"
+    volumes:
+      - ./config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./config/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - journal2:/opt/hadoop/journal
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.21
+
+  journalnode3:
+    image: apache/hadoop:3.3.6
+    hostname: journalnode3
+    container_name: journalnode3
+    user: "0:0"  # Run as root to avoid permission issues
+    command: /bin/bash -c "mkdir -p /opt/hadoop/journal && chmod 755 /opt/hadoop/journal && hdfs journalnode"
+    volumes:
+      - ./config/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml
+      - ./config/hdfs-site.xml:/opt/hadoop/etc/hadoop/hdfs-site.xml
+      - journal3:/opt/hadoop/journal
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.22
+
+  # NameNode High Availability
+  namenode1:
+    image: apache/hadoop:3.3.6
+    hostname: namenode1
+    container_name: namenode1
+    user: "0:0"  # Run as root to avoid permission issues
+    ports:
+      - "9870:9870"  # Web UI
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+      - nn1-data:/opt/hadoop/data
+    command: tail -f /dev/null  # Keep container running for initialization
+    depends_on:
+      - journalnode1
+      - journalnode2
+      - journalnode3
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.30
+
+  namenode2:
+    image: apache/hadoop:3.3.6
+    hostname: namenode2
+    container_name: namenode2
+    user: "0:0"  # Run as root to avoid permission issues
+    ports:
+      - "9871:9870"  # Web UI
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+      - nn2-data:/opt/hadoop/data
+    command: tail -f /dev/null  # Keep container running for initialization
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.31
+
+  # DataNode
+  datanode1:
+    image: apache/hadoop:3.3.6
+    hostname: datanode1
+    container_name: datanode1
+    user: "0:0"  # Run as root to avoid permission issues
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+      - dn1-data:/opt/hadoop/data
+    command: hdfs datanode
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.40
+
+  datanode2:
+    image: apache/hadoop:3.3.6
+    hostname: datanode2
+    container_name: datanode2
+    user: "0:0"  # Run as root to avoid permission issues
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+      - dn2-data:/opt/hadoop/data
+    command: hdfs datanode
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.41
+
+  datanode3:
+    image: apache/hadoop:3.3.6
+    hostname: datanode3
+    container_name: datanode3
+    user: "0:0"  # Run as root to avoid permission issues
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+      - dn3-data:/opt/hadoop/data
+    command: hdfs datanode
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.42
+
+  # ResourceManager High Availability
+  resourcemanager1:
+    image: apache/hadoop:3.3.6
+    hostname: resourcemanager1
+    container_name: resourcemanager1
+    user: "0:0"  # Run as root to avoid permission issues
+    ports:
+      - "8088:8088"  # YARN UI
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+    command: yarn resourcemanager
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.50
+
+  resourcemanager2:
+    image: apache/hadoop:3.3.6
+    hostname: resourcemanager2
+    container_name: resourcemanager2
+    user: "0:0"  # Run as root to avoid permission issues
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop
+    command: yarn resourcemanager
+    networks:
+      hadoop-net:
+        ipv4_address: 172.18.0.51
+
+networks:
+  hadoop-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
+
+volumes:
+  zoo1-data:
+  zoo2-data:
+  zoo3-data:
+  journal1:
+  journal2:
+  journal3:
+  nn1-data:
+  nn2-data:
+  dn1-data:
+  dn2-data:
+  dn3-data:
