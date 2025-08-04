@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- HA Configuration -->
+  <property>
+    <name>dfs.nameservices</name>
+    <value>mycluster</value>
+  </property>
+  
+  <property>
+    <name>dfs.ha.namenodes.mycluster</name>
+    <value>nn1,nn2</value>
+  </property>
+  
+  <!-- NameNode addresses -->
+  <property>
+    <name>dfs.namenode.rpc-address.mycluster.nn1</name>
+    <value>localhost:9820</value>
+  </property>
+  
+  <property>
+    <name>dfs.namenode.rpc-address.mycluster.nn2</name>
+    <value>localhost:9821</value>
+  </property>
+  
+  <property>
+    <name>dfs.namenode.http-address.mycluster.nn1</name>
+    <value>localhost:9870</value>
+  </property>
+  
+  <property>
+    <name>dfs.namenode.http-address.mycluster.nn2</name>
+    <value>localhost:9871</value>
+  </property>
+  
+  <!-- Failover Configuration -->
+  <property>
+    <name>dfs.client.failover.proxy.provider.mycluster</name>
+    <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+  </property>
+  
+  <!-- Client Configuration -->
+  <property>
+    <name>dfs.client.use.datanode.hostname</name>
+    <value>true</value>
+  </property>
+  
+  <!-- WebHDFS -->
+  <property>
+    <name>dfs.webhdfs.enabled</name>
+    <value>true</value>
+  </property>
+  
+  <!-- Replication -->
+  <property>
+    <name>dfs.replication</name>
+    <value>3</value>
+  </property>
+</configuration>

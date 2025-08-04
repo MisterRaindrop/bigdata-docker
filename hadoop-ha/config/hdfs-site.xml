@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <!-- Basic HA Configuration -->
   <property>
@@ -6,13 +7,13 @@
   </property>
   <property>
     <name>dfs.ha.namenodes.mycluster</name>
-    <value>nn1,nn2</value>  <!-- NameNode logical names -->
+    <value>nn1,nn2</value>
   </property>
   
   <!-- NN1 Address -->
   <property>
     <name>dfs.namenode.rpc-address.mycluster.nn1</name>
-    <value>namenode1:8020</value>
+    <value>namenode1:9820</value>
   </property>
   <property>
     <name>dfs.namenode.http-address.mycluster.nn1</name>
@@ -22,7 +23,7 @@
   <!-- NN2 Address -->
   <property>
     <name>dfs.namenode.rpc-address.mycluster.nn2</name>
-    <value>namenode2:8020</value>
+    <value>namenode2:9820</value>
   </property>
   <property>
     <name>dfs.namenode.http-address.mycluster.nn2</name>
@@ -36,7 +37,7 @@
   </property>
   <property>
     <name>dfs.journalnode.edits.dir</name>
-    <value>/opt/hadoop/journal</value>
+    <value>/hadoop/dfs/journal</value>
   </property>
   
   <!-- ZKFC Configuration -->
@@ -47,5 +48,87 @@
   <property>
     <name>dfs.client.failover.proxy.provider.mycluster</name>
     <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+  </property>
+  
+  <!-- ZooKeeper Configuration -->
+  <property>
+    <name>dfs.ha.zookeeper.quorum</name>
+    <value>zookeeper1:2181,zookeeper2:2181,zookeeper3:2181</value>
+  </property>
+  
+  <!-- NameNode Directory Configuration -->
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>/hadoop/dfs/name</value>
+  </property>
+  
+  <!-- DataNode Directory Configuration -->
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>/hadoop/dfs/data</value>
+  </property>
+  
+  <!-- Replication Factor -->
+  <property>
+    <name>dfs.replication</name>
+    <value>3</value>
+  </property>
+  
+  <!-- Block Size -->
+  <property>
+    <name>dfs.blocksize</name>
+    <value>268435456</value>
+  </property>
+  
+  <!-- Permission Configuration -->
+  <property>
+    <name>dfs.permissions.enabled</name>
+    <value>false</value>
+  </property>
+  
+  <!-- WebHDFS Configuration -->
+  <property>
+    <name>dfs.webhdfs.enabled</name>
+    <value>true</value>
+  </property>
+  
+  <!-- DataNode Configuration -->
+  <property>
+    <name>dfs.datanode.address</name>
+    <value>0.0.0.0:9866</value>
+  </property>
+  <property>
+    <name>dfs.datanode.http.address</name>
+    <value>0.0.0.0:9864</value>
+  </property>
+  <property>
+    <name>dfs.datanode.ipc.address</name>
+    <value>0.0.0.0:9867</value>
+  </property>
+
+  <!-- Hostname Configuration - Force using hostname instead of IP -->
+  <property>
+    <name>dfs.client.use.datanode.hostname</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>dfs.datanode.use.datanode.hostname</name>
+    <value>true</value>
+  </property>
+  
+  <!-- DataNode Hostname Override - Let each DataNode use the correct hostname -->
+  <property>
+    <name>dfs.datanode.hostname</name>
+    <value>${env.DATANODE_HOSTNAME}</value>
+  </property>
+
+  <!-- HA Configuration -->
+  <property>
+    <name>dfs.ha.fencing.methods</name>
+    <value>shell(/bin/true)</value>
+  </property>
+  <property>
+    <name>dfs.ha.fencing.ssh.private-key-files</name>
+    <value>/root/.ssh/id_rsa</value>
   </property>
 </configuration>
