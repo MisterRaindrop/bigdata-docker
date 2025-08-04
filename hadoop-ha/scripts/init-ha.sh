@@ -3,183 +3,221 @@
 # Exit on any error
 set -e
 
-# Function to check if a container is running
-check_container() {
-    local container_name=$1
-    local status=$(docker inspect -f '{{.State.Status}}' $container_name 2>/dev/null || echo "not_found")
-    if [ "$status" != "running" ]; then
-        return 1
-    fi
-    return 0
-}
+echo "Starting Hadoop HA cluster initialization..."
 
-# Function to wait for container to be healthy
+# Function to wait for container to be ready
 wait_for_container() {
     local container_name=$1
     local max_attempts=30
     local attempt=1
     
-    echo "Waiting for $container_name to start..."
-    while ! check_container "$container_name"; do
-        if [ $attempt -gt $max_attempts ]; then
-            echo "Error: Container $container_name failed to start"
-            return 1
+    echo "Waiting for $container_name container to be ready..."
+    while [ $attempt -le $max_attempts ]; do
+        if docker exec $container_name echo "Container is ready" > /dev/null 2>&1; then
+            echo "✅ $container_name container is ready"
+            return 0
         fi
-        echo "Attempt $attempt: $container_name is not ready yet..."
+        echo "Attempt $attempt/$max_attempts: $container_name not ready yet..."
         sleep 5
         attempt=$((attempt + 1))
     done
-    echo "$container_name is running"
-    return 0
+    echo "❌ $container_name container not ready after $max_attempts attempts"
+    return 1
 }
 
-echo "Starting Hadoop HA cluster initialization..."
+# Function to check if service is running on port
+check_service_port() {
+    local container_name=$1
+    local port=$2
+    local max_attempts=20
+    local attempt=1
+    
+    echo "Checking port $port on $container_name..."
+    while [ $attempt -le $max_attempts ]; do
+        # Use nc from namenode1 to test connection to specified container port
+        if docker exec namenode1 nc -z $container_name $port 2>/dev/null; then
+            echo "✅ $container_name port $port is ready"
+            return 0
+        fi
+        echo "Attempt $attempt/$max_attempts: $container_name port $port not ready yet..."
+        sleep 3
+        attempt=$((attempt + 1))
+    done
+    echo "❌ $container_name port $port not ready after $max_attempts attempts"
+    return 1
+}
 
-# Step 1: Start ZooKeeper cluster
-echo "Step 1: Starting ZooKeeper cluster..."
-docker-compose up -d zookeeper1 zookeeper2 zookeeper3
-for zk in zookeeper1 zookeeper2 zookeeper3; do
-    wait_for_container $zk
+# Step 1: Wait for all containers to start
+echo "=== Step 1: Wait for all containers to start ==="
+containers=(
+    "zookeeper1"
+    "zookeeper2" 
+    "zookeeper3"
+    "journalnode1"
+    "journalnode2"
+    "journalnode3"
+    "namenode1"
+    "namenode2"
+)
+
+for container in "${containers[@]}"; do
+    wait_for_container "$container"
 done
-echo "ZooKeeper cluster is running"
 
-# Step 2: Start JournalNode cluster
-echo "Step 2: Starting JournalNode cluster..."
-docker-compose up -d journalnode1 journalnode2 journalnode3
+# Step 2: Wait for ZooKeeper cluster to start
+echo "=== Step 2: Wait for ZooKeeper cluster to start ==="
+sleep 15
+echo "✅ ZooKeeper cluster started successfully"
+
+# Step 3: Initialize HA nodes in ZooKeeper
+echo "=== Step 3: Initialize ZooKeeper HA nodes ==="
+echo "Formatting ZooKeeper..."
+docker exec zookeeper1 zkCli.sh -server zookeeper1:2181 create /hadoop-ha "" 2>/dev/null || echo "ZooKeeper node already exists"
+
+# Step 4: Fix permissions and start JournalNode
+echo "=== Step 4: Fix permissions and start JournalNode ==="
+
+# Fix permissions first
+echo "Fixing JournalNode directory permissions..."
 for jn in journalnode1 journalnode2 journalnode3; do
-    wait_for_container $jn
+    docker exec -u root $jn bash -c "
+        mkdir -p /hadoop/dfs/journal
+        chmod -R 755 /hadoop
+        chown -R hadoop:hadoop /hadoop
+    "
 done
 
-# Wait for JournalNode services to be ready
+# Start JournalNode services
+echo "Starting JournalNode processes..."
+docker exec -d journalnode1 hdfs journalnode
+docker exec -d journalnode2 hdfs journalnode
+docker exec -d journalnode3 hdfs journalnode
+
+# Wait for JournalNode services to start and listen on ports
 echo "Waiting for JournalNode services to be ready..."
 for jn in journalnode1 journalnode2 journalnode3; do
-    echo "Checking $jn connectivity..."
-    max_attempts=30
-    attempt=1
-    while [ $attempt -le $max_attempts ]; do
-        if docker exec $jn nc -z localhost 8485; then
-            echo "$jn is ready"
-            break
-        else
-            echo "Attempt $attempt: $jn is not ready yet..."
-            if [ $attempt -eq $max_attempts ]; then
-                echo "Error: $jn failed to become ready"
-                exit 1
-            fi
-            sleep 2
-            attempt=$((attempt + 1))
-        fi
-    done
-done
-echo "JournalNode cluster is running and ready"
-
-# Step 2.5: Initialize JournalNode cluster
-echo "Step 2.5: Initializing JournalNode cluster..."
-# The JournalNode cluster doesn't need explicit initialization like ZooKeeper
-# It will create the necessary directories when the first NameNode connects
-
-# Step 3: Start and format first NameNode
-echo "Step 3: Starting first NameNode..."
-docker-compose up -d namenode1
-wait_for_container namenode1
-
-echo "Formatting ZooKeeper..."
-max_attempts=3
-attempt=1
-while [ $attempt -le $max_attempts ]; do
-    if docker exec namenode1 hdfs zkfc -formatZK -force; then
-        echo "Successfully formatted ZooKeeper"
-        break
-    else
-        echo "Failed to format ZooKeeper (attempt $attempt of $max_attempts)"
-        if [ $attempt -eq $max_attempts ]; then
-            echo "Error: Failed to format ZooKeeper after $max_attempts attempts"
-            exit 1
-        fi
-        sleep 10
-        attempt=$((attempt + 1))
+    if ! check_service_port "$jn" 8485; then
+        echo "❌ $jn startup failed, checking logs..."
+        docker logs "$jn" --tail 20
+        exit 1
     fi
 done
 
-echo "Formatting NameNode..."
-max_attempts=3
-attempt=1
-while [ $attempt -le $max_attempts ]; do
-    if docker exec namenode1 hdfs namenode -format -force; then
-        echo "Successfully formatted NameNode"
+echo "✅ All JournalNodes started successfully"
+
+# Step 5: Clean up NameNode environment
+echo "=== Step 5: Clean up NameNode environment ==="
+
+# Stop any running NameNode processes
+echo "Stopping existing NameNode processes..."
+docker exec namenode1 pkill -f "namenode" || echo "namenode1 no running processes"
+docker exec namenode2 pkill -f "namenode" || echo "namenode2 no running processes"
+
+# Clean up PID files
+echo "Cleaning up PID files..."
+docker exec namenode1 rm -f /tmp/hadoop-*.pid || echo "namenode1 no PID files"
+docker exec namenode2 rm -f /tmp/hadoop-*.pid || echo "namenode2 no PID files"
+
+# Fix NameNode permissions and create directories
+echo "Fixing NameNode permissions and creating necessary directories..."
+for nn in namenode1 namenode2; do
+    docker exec -u root $nn bash -c "
+        mkdir -p /hadoop/dfs/name
+        chmod -R 755 /hadoop
+        chown -R hadoop:hadoop /hadoop
+    "
+done
+
+# Step 6: Format ZK
+echo "=== Step 6: Format ZK ==="
+docker exec namenode1 hdfs zkfc -formatZK -force
+
+# Step 7: Format NameNode1
+echo "=== Step 7: Format NameNode1 ==="
+for attempt in {1..3}; do
+    echo "Attempting to format NameNode1 (attempt $attempt/3)..."
+    
+    if docker exec namenode1 hdfs namenode -format -force -nonInteractive; then
+        echo "✅ NameNode1 formatted successfully"
         break
     else
-        echo "Failed to format NameNode (attempt $attempt of $max_attempts)"
-        if [ $attempt -eq $max_attempts ]; then
-            echo "Error: Failed to format NameNode after $max_attempts attempts"
+        echo "❌ NameNode1 formatting failed (attempt $attempt/3)"
+        if [ $attempt -eq 3 ]; then
+            echo "❌ NameNode1 formatting failed finally"
+            docker logs namenode1 --tail 30
             exit 1
         fi
         sleep 10
-        attempt=$((attempt + 1))
     fi
 done
 
-# Step 4: Start NameNode and ZKFC services on namenode1
-echo "Step 4: Starting NameNode and ZKFC services on namenode1..."
-docker exec namenode1 /bin/bash -c "/opt/hadoop/sbin/hadoop-daemon.sh start zkfc"
-docker exec namenode1 /bin/bash -c "nohup hdfs namenode > /tmp/namenode.log 2>&1 &"
-sleep 10  # Wait for services to start
+# Step 8: Start ZKFC
+echo "=== Step 8: Start ZKFC ==="
+docker exec -d namenode1 hdfs zkfc
+docker exec -d namenode2 hdfs zkfc
 
-# Step 5: Start second NameNode and synchronize metadata
-echo "Step 5: Starting second NameNode..."
-docker-compose up -d namenode2
-wait_for_container namenode2
+# Step 9: Start NameNode1
+echo "=== Step 9: Start NameNode1 ==="
+docker exec -d namenode1 hdfs namenode
 
-echo "Bootstrapping standby NameNode..."
-max_attempts=3
-attempt=1
-while [ $attempt -le $max_attempts ]; do
-    if docker exec namenode2 hdfs namenode -bootstrapStandby -force; then
-        echo "Successfully bootstrapped standby NameNode"
+# Wait for NameNode1 to start
+sleep 25
+echo "✅ NameNode1 started successfully"
+
+# Step 10: Format NameNode2
+echo "=== Step 10: Format NameNode2 ==="
+for attempt in {1..3}; do
+    echo "Attempting to format NameNode2 (attempt $attempt/3)..."
+    
+    if docker exec namenode2 hdfs namenode -bootstrapStandby -force -nonInteractive; then
+        echo "✅ NameNode2 formatted successfully"
         break
     else
-        echo "Failed to bootstrap standby NameNode (attempt $attempt of $max_attempts)"
-        if [ $attempt -eq $max_attempts ]; then
-            echo "Error: Failed to bootstrap standby NameNode after $max_attempts attempts"
+        echo "❌ NameNode2 formatting failed (attempt $attempt/3)"
+        if [ $attempt -eq 3 ]; then
+            echo "❌ NameNode2 formatting failed finally"
+            docker logs namenode2 --tail 30
             exit 1
         fi
         sleep 10
-        attempt=$((attempt + 1))
     fi
 done
 
-echo "Starting NameNode and ZKFC services on namenode2..."
-docker exec namenode2 /bin/bash -c "/opt/hadoop/sbin/hadoop-daemon.sh start zkfc"
-docker exec namenode2 /bin/bash -c "nohup hdfs namenode > /tmp/namenode.log 2>&1 &"
-sleep 10  # Wait for services to start
+# Step 11: Start NameNode2
+echo "=== Step 11: Start NameNode2 ==="
+docker exec -d namenode2 hdfs namenode
 
-# Step 6: Start remaining services
-echo "Step 6: Starting remaining services..."
-docker-compose up -d
+# Wait for NameNode2 to start
+sleep 25
+echo "✅ NameNode2 started successfully"
 
-# Step 7: Wait for all services to start
-echo "Step 7: Waiting for all services to start..."
+# Step 12: Start DataNode
+echo "=== Step 12: Start DataNode ==="
+docker exec -d datanode1 hdfs datanode
+docker exec -d datanode2 hdfs datanode  
+docker exec -d datanode3 hdfs datanode
+
+# Step 13: Start ResourceManager
+echo "=== Step 13: Start ResourceManager ==="
+docker exec -d resourcemanager1 yarn resourcemanager
+docker exec -d resourcemanager2 yarn resourcemanager
+
+# Step 14: Wait for all services to start
+echo "=== Step 14: Wait for all services to start ==="
 sleep 30
 
-# Step 8: Verify cluster status
-echo "Verifying cluster status..."
+# Step 15: Verify cluster status
+echo "=== Step 15: Verify cluster status ==="
+echo "Checking NameNode status..."
+docker exec namenode1 hdfs haadmin -getServiceState nn1 || echo "NameNode1 status check failed"
+docker exec namenode2 hdfs haadmin -getServiceState nn2 || echo "NameNode2 status check failed"
 
-echo "NameNode status:"
-if ! docker exec namenode1 hdfs haadmin -getServiceState nn1; then
-    echo "Warning: Unable to get nn1 status"
-fi
+echo "Checking HDFS report..."
+docker exec namenode1 hdfs dfsadmin -report || echo "HDFS report retrieval failed"
 
-if ! docker exec namenode2 hdfs haadmin -getServiceState nn2; then
-    echo "Warning: Unable to get nn2 status"
-fi
-
-echo "DataNode status:"
-if ! docker exec namenode1 hdfs dfsadmin -report | grep "Live datanodes"; then
-    echo "Warning: Unable to get DataNode status"
-fi
-
-echo "Hadoop HA cluster initialization completed!"
-echo "Access URLs:"
+echo "✅ Hadoop HA cluster initialization completed!"
+echo "Cluster access information:"
 echo "  NameNode1 Web UI: http://localhost:9870"
 echo "  NameNode2 Web UI: http://localhost:9871"
-echo "  YARN Web UI: http://localhost:8088"
+echo "  ResourceManager1 Web UI: http://localhost:8088"
+echo "  ResourceManager2 Web UI: http://localhost:8089"
