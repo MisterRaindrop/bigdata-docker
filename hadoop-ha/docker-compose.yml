@@ -12,7 +12,7 @@ services:
       - zk1_data:/data
       - zk1_datalog:/datalog
     networks:
-      - hadoop-network
+      - app-network
 
   zookeeper2:
     image: zookeeper:3.7
@@ -24,7 +24,7 @@ services:
       - zk2_data:/data
       - zk2_datalog:/datalog
     networks:
-      - hadoop-network
+      - app-network
 
   zookeeper3:
     image: zookeeper:3.7
@@ -36,7 +36,7 @@ services:
       - zk3_data:/data
       - zk3_datalog:/datalog
     networks:
-      - hadoop-network
+      - app-network
 
   # JournalNode cluster
   journalnode1:
@@ -49,7 +49,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - jn1_data:/hadoop/dfs/journal
     networks:
-      - hadoop-network
+      - app-network
 
   journalnode2:
     image: apache/hadoop:3.3.6
@@ -61,7 +61,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - jn2_data:/hadoop/dfs/journal
     networks:
-      - hadoop-network
+      - app-network
 
   journalnode3:
     image: apache/hadoop:3.3.6
@@ -73,7 +73,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - jn3_data:/hadoop/dfs/journal
     networks:
-      - hadoop-network
+      - app-network
 
   # NameNode
   namenode1:
@@ -89,7 +89,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - nn1_data:/hadoop/dfs/name
     networks:
-      - hadoop-network
+      - app-network
 
   namenode2:
     image: apache/hadoop:3.3.6
@@ -104,7 +104,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - nn2_data:/hadoop/dfs/name
     networks:
-      - hadoop-network
+      - app-network
 
   # DataNode
   datanode1:
@@ -123,7 +123,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - dn1_data:/hadoop/dfs/data
     networks:
-      - hadoop-network
+      - app-network
 
   datanode2:
     image: apache/hadoop:3.3.6
@@ -141,7 +141,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - dn2_data:/hadoop/dfs/data
     networks:
-      - hadoop-network
+      - app-network
 
   datanode3:
     image: apache/hadoop:3.3.6
@@ -159,7 +159,7 @@ services:
       - ./config:/opt/hadoop/etc/hadoop
       - dn3_data:/hadoop/dfs/data
     networks:
-      - hadoop-network
+      - app-network
 
   # ResourceManager
   resourcemanager1:
@@ -174,7 +174,7 @@ services:
     volumes:
       - ./config:/opt/hadoop/etc/hadoop
     networks:
-      - hadoop-network
+      - app-network
 
   resourcemanager2:
     image: apache/hadoop:3.3.6
@@ -188,7 +188,7 @@ services:
     volumes:
       - ./config:/opt/hadoop/etc/hadoop
     networks:
-      - hadoop-network
+      - app-network
 
 volumes:
   zk1_data:
@@ -207,5 +207,6 @@ volumes:
   dn3_data:
 
 networks:
-  hadoop-network:
-    driver: bridge
+  app-network:
+    external: true
+    name: share-enterprise-ci
