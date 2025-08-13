@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>yarn.resourcemanager.ha.enabled</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.cluster-id</name>
+    <value>yarn-rm</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.ha.rm-ids</name>
+    <value>rm1,rm2</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.hostname.rm1</name>
+    <value>resourcemanager1</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.hostname.rm2</name>
+    <value>resourcemanager2</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.principal</name>
+    <value>rm/_HOST@EXAMPLE.COM</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.keytab</name>
+    <value>/keytabs/rm.keytab</value>
+  </property>
+
+  <property>
+    <name>yarn.nodemanager.principal</name>
+    <value>nm/_HOST@EXAMPLE.COM</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.keytab</name>
+    <value>/keytabs/nm.keytab</value>
+  </property>
+
+  <property>
+    <name>yarn.acl.enable</name>
+    <value>true</value>
+  </property>
+
+  <property>
+    <name>yarn.resourcemanager.webapp.delegation-token-auth-filter.enabled</name>
+    <value>true</value>
+  </property>
+</configuration>

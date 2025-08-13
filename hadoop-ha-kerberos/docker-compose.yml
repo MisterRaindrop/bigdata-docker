@@ -1,0 +1,251 @@
+services:
+  # Kerberos KDC
+  kdc:
+    image: debian:stable-slim
+    container_name: kdc
+    hostname: kdc
+    command: ["bash", "-lc", "/scripts/init-kerberos.sh && tail -f /dev/null"]
+    environment:
+      - KERBEROS_REALM=EXAMPLE.COM
+      - KERBEROS_ADMIN_PASSWORD=${KERBEROS_ADMIN_PASSWORD:-adminpassword}
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs
+    networks:
+      - hadoop-network
+
+  # ZooKeeper cluster
+  zookeeper1:
+    image: zookeeper:3.7
+    container_name: zookeeper1
+    hostname: zookeeper1
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      - hadoop-network
+
+  zookeeper2:
+    image: zookeeper:3.7
+    container_name: zookeeper2
+    hostname: zookeeper2
+    environment:
+      ZOO_MY_ID: 2
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      - hadoop-network
+
+  zookeeper3:
+    image: zookeeper:3.7
+    container_name: zookeeper3
+    hostname: zookeeper3
+    environment:
+      ZOO_MY_ID: 3
+      ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
+    networks:
+      - hadoop-network
+
+  # JournalNodes
+  journalnode1:
+    image: apache/hadoop:3.3.6
+    container_name: journalnode1
+    hostname: journalnode1
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - jn1_data:/hadoop/dfs/journal
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  journalnode2:
+    image: apache/hadoop:3.3.6
+    container_name: journalnode2
+    hostname: journalnode2
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - jn2_data:/hadoop/dfs/journal
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  journalnode3:
+    image: apache/hadoop:3.3.6
+    container_name: journalnode3
+    hostname: journalnode3
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - jn3_data:/hadoop/dfs/journal
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  # NameNodes
+  namenode1:
+    image: apache/hadoop:3.3.6
+    container_name: namenode1
+    hostname: namenode1
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    ports:
+      - "9870:9870"
+      - "9820:9820"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - nn1_data:/hadoop/dfs/name
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  namenode2:
+    image: apache/hadoop:3.3.6
+    container_name: namenode2
+    hostname: namenode2
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    ports:
+      - "9871:9870"
+      - "9821:9820"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - nn2_data:/hadoop/dfs/name
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  # DataNodes
+  datanode1:
+    image: apache/hadoop:3.3.6
+    container_name: datanode1
+    hostname: datanode1
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+      - DATANODE_HOSTNAME=datanode1
+    ports:
+      - "9864:9864"
+      - "9866:9866"
+      - "9867:9867"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - dn1_data:/hadoop/dfs/data
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  datanode2:
+    image: apache/hadoop:3.3.6
+    container_name: datanode2
+    hostname: datanode2
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+      - DATANODE_HOSTNAME=datanode2
+    ports:
+      - "9874:9864"
+      - "9876:9866"
+      - "9877:9867"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - dn2_data:/hadoop/dfs/data
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  datanode3:
+    image: apache/hadoop:3.3.6
+    container_name: datanode3
+    hostname: datanode3
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+      - DATANODE_HOSTNAME=datanode3
+    ports:
+      - "9884:9864"
+      - "9886:9866"
+      - "9887:9867"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - dn3_data:/hadoop/dfs/data
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  # YARN ResourceManagers
+  resourcemanager1:
+    image: apache/hadoop:3.3.6
+    container_name: resourcemanager1
+    hostname: resourcemanager1
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    ports:
+      - "8088:8088"
+      - "8030:8030"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+  resourcemanager2:
+    image: apache/hadoop:3.3.6
+    container_name: resourcemanager2
+    hostname: resourcemanager2
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+      - KRB5_CONFIG=/etc/krb5.conf
+    ports:
+      - "8089:8088"
+      - "8031:8030"
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+      - ./config/krb5.conf:/etc/krb5.conf:ro
+      - ./keytabs:/keytabs:ro
+    networks:
+      - hadoop-network
+
+volumes:
+  jn1_data:
+  jn2_data:
+  jn3_data:
+  nn1_data:
+  nn2_data:
+  dn1_data:
+  dn2_data:
+  dn3_data:
+
+networks:
+  hadoop-network:
+    external: true
+    name: share-enterprise-ci

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://mycluster</value>
+  </property>
+
+  <property>
+    <name>hadoop.security.authentication</name>
+    <value>kerberos</value>
+  </property>
+
+  <property>
+    <name>hadoop.security.authorization</name>
+    <value>true</value>
+  </property>
+
+  <property>
+    <name>hadoop.rpc.protection</name>
+    <value>privacy</value>
+  </property>
+
+  <property>
+    <name>hadoop.http.filter.initializers</name>
+    <value>org.apache.hadoop.security.AuthenticationFilterInitializer</value>
+  </property>
+
+  <property>
+    <name>hadoop.http.authentication.type</name>
+    <value>kerberos</value>
+  </property>
+
+  <property>
+    <name>hadoop.http.authentication.simple.anonymous.allowed</name>
+    <value>false</value>
+  </property>
+
+  <property>
+    <name>hadoop.http.authentication.kerberos.principal</name>
+    <value>HTTP/_HOST@EXAMPLE.COM</value>
+  </property>
+
+  <property>
+    <name>hadoop.http.authentication.kerberos.keytab</name>
+    <value>/keytabs/http.keytab</value>
+  </property>
+
+</configuration>
