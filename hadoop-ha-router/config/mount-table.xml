@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<mount-table xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:noNamespaceSchemaLocation="router-mount-table.xsd">
+  <mount-point>
+    <sourcePath>/</sourcePath>
+    <destinations>
+      <destination>
+        <nameservice>mycluster</nameservice>
+        <dest>hdfs://mycluster/</dest>
+      </destination>
+    </destinations>
+    <readOnly>false</readOnly>
+  </mount-point>
+</mount-table>

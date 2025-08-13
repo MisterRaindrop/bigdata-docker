@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://mycluster</value>
+  </property>
+
+  <!-- 可切换为 Router 统一入口（客户端端侧）-->
+  <!-- <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://router:8888</value>
+  </property> -->
+
+  <property>
+    <name>hadoop.http.filter.initializers</name>
+    <value>org.apache.hadoop.security.AuthenticationFilterInitializer</value>
+  </property>
+
+  <property>
+    <name>hadoop.http.authentication.simple.anonymous.allowed</name>
+    <value>true</value>
+  </property>
+</configuration>
