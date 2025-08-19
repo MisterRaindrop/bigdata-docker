@@ -18,6 +18,53 @@ This is a Docker-based Hadoop High Availability (HA) cluster that supports deplo
 - ✅ Rocky Linux 8/9
 - ✅ AlmaLinux 8/9
 
+## 🌐 Network Configuration
+
+This cluster is configured to use the `share-enterprise-ci` Docker network. This allows other Docker containers to access the Hadoop HA cluster services.
+
+### Network Setup
+
+Make sure the `share-enterprise-ci` network exists before starting the cluster:
+
+```bash
+# Check if the network exists
+docker network ls | grep share-enterprise-ci
+
+# If it doesn't exist, create it
+docker network create share-enterprise-ci
+```
+
+### Connecting Other Containers
+
+If other Docker containers need to access the Hadoop HA cluster, they must be connected to the `share-enterprise-ci` network:
+
+```bash
+# Connect an existing container to the network
+docker network connect share-enterprise-ci your-container-name
+
+# Or specify the network when running a new container
+docker run --network share-enterprise-ci your-image
+```
+
+### Service Access from Other Containers
+
+Once connected to the `share-enterprise-ci` network, other containers can access Hadoop services using the container names:
+
+- **NameNode1**: `namenode1:9820` (RPC), `namenode1:9870` (Web UI)
+- **NameNode2**: `namenode2:9820` (RPC), `namenode2:9870` (Web UI)
+- **DataNode1**: `datanode1:9866` (Data transfer), `datanode1:9864` (Web UI)
+- **DataNode2**: `datanode2:9866` (Data transfer), `datanode2:9864` (Web UI)
+- **DataNode3**: `datanode3:9866` (Data transfer), `datanode3:9864` (Web UI)
+- **ResourceManager1**: `resourcemanager1:8030` (RPC), `resourcemanager1:8088` (Web UI)
+- **ResourceManager2**: `resourcemanager2:8030` (RPC), `resourcemanager2:8088` (Web UI)
+
+### Network Verification
+
+You can verify the network configuration using:
+```bash
+./check-network.sh
+```
+
 ## 🚀 Environment Preparation
 
 ### 🔧 Automatic Installation (Recommended)
@@ -274,7 +321,7 @@ docker logs nginx-proxy
 
 # Check network
 docker network ls
-docker network inspect hadoop-ha_hadoop-network
+docker network inspect share-enterprise-ci
 
 # Check port usage
 sudo netstat -tlnp | grep -E "(80|9820|9821)"
@@ -354,6 +401,21 @@ docker logs namenode1 --tail 50
 ./start-cluster.sh
 ```
 
+### Q6: Network Connection Issues
+```bash
+# Check if share-enterprise-ci network exists
+docker network ls | grep share-enterprise-ci
+
+# Create network if it doesn't exist
+docker network create share-enterprise-ci
+
+# Check network connectivity
+./check-network.sh
+
+# Verify container network connections
+docker network inspect share-enterprise-ci
+```
+
 ## 🏗️ Cluster Architecture
 
 ### Service Components
@@ -400,7 +462,10 @@ hadoop-ha/
 ├── fix-permissions.sh     # Fix permissions script
 ├── fix-cluster.sh         # Fix cluster script
 ├── test-proxy.sh          # Test web proxy script
-└── test-rpc.sh           # Test RPC proxy script
+├── test-rpc.sh           # Test RPC proxy script
+├── start-datanodes.sh     # DataNode startup and check script
+├── check-network.sh       # Network configuration check script
+└── DATANODE-TROUBLESHOOTING.md  # DataNode troubleshooting guide
 ```
 
 ## ⚡ Performance Tuning
@@ -467,6 +532,7 @@ Before deployment, please confirm:
 - [ ] Necessary ports are not occupied
 - [ ] Firewall rules are configured (if enabled)
 - [ ] System parameters are optimized
+- [ ] share-enterprise-ci network exists or can be created
 
 After deployment, please verify:
 
@@ -474,4 +540,6 @@ After deployment, please verify:
 - [ ] Web UI is accessible
 - [ ] NameNode status is normal
 - [ ] HDFS reports are normal
-- [ ] Network connections are normal 
+- [ ] Network connections are normal
+- [ ] share-enterprise-ci network connectivity is working
+- [ ] Other containers can access Hadoop services via network 

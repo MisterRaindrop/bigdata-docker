@@ -3,110 +3,107 @@ services:
   zookeeper1:
     image: zookeeper:3.7
     container_name: zookeeper1
+    hostname: zookeeper1
     environment:
       ZOO_MY_ID: 1
       ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
-    ports:
-      - "2181:2181"
-    volumes:
-      - zk1_data:/data
-      - zk1_datalog:/datalog
     networks:
-      - app-network
+      - hadoop-network
 
   zookeeper2:
     image: zookeeper:3.7
     container_name: zookeeper2
+    hostname: zookeeper2
     environment:
       ZOO_MY_ID: 2
       ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
-    volumes:
-      - zk2_data:/data
-      - zk2_datalog:/datalog
     networks:
-      - app-network
+      - hadoop-network
 
   zookeeper3:
     image: zookeeper:3.7
     container_name: zookeeper3
+    hostname: zookeeper3
     environment:
       ZOO_MY_ID: 3
       ZOO_SERVERS: server.1=zookeeper1:2888:3888;2181 server.2=zookeeper2:2888:3888;2181 server.3=zookeeper3:2888:3888;2181
-    volumes:
-      - zk3_data:/data
-      - zk3_datalog:/datalog
     networks:
-      - app-network
+      - hadoop-network
 
-  # JournalNode cluster
+  # JournalNodes
   journalnode1:
     image: apache/hadoop:3.3.6
     container_name: journalnode1
+    hostname: journalnode1
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - jn1_data:/hadoop/dfs/journal
     networks:
-      - app-network
+      - hadoop-network
 
   journalnode2:
     image: apache/hadoop:3.3.6
     container_name: journalnode2
+    hostname: journalnode2
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - jn2_data:/hadoop/dfs/journal
     networks:
-      - app-network
+      - hadoop-network
 
   journalnode3:
     image: apache/hadoop:3.3.6
     container_name: journalnode3
+    hostname: journalnode3
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - jn3_data:/hadoop/dfs/journal
     networks:
-      - app-network
+      - hadoop-network
 
-  # NameNode
+  # NameNodes
   namenode1:
     image: apache/hadoop:3.3.6
     container_name: namenode1
+    hostname: namenode1
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     ports:
-      - "9820:9820"  # RPC
-      - "9870:9870"  # Web UI
+      - "9870:9870"
+      - "9820:9820"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - nn1_data:/hadoop/dfs/name
     networks:
-      - app-network
+      - hadoop-network
 
   namenode2:
     image: apache/hadoop:3.3.6
     container_name: namenode2
+    hostname: namenode2
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     ports:
-      - "9821:9820"  # RPC
-      - "9871:9870"  # Web UI
+      - "9871:9870"
+      - "9821:9820"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - nn2_data:/hadoop/dfs/name
     networks:
-      - app-network
+      - hadoop-network
 
-  # DataNode
+  # DataNodes
   datanode1:
     image: apache/hadoop:3.3.6
     container_name: datanode1
@@ -116,14 +113,14 @@ services:
       - HADOOP_HOME=/opt/hadoop
       - DATANODE_HOSTNAME=datanode1
     ports:
-      - "9866:9866"  # Data transfer
-      - "9864:9864"  # Web UI
-      - "9867:9867"  # IPC
+      - "9864:9864"
+      - "9866:9866"
+      - "9867:9867"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - dn1_data:/hadoop/dfs/data
     networks:
-      - app-network
+      - hadoop-network
 
   datanode2:
     image: apache/hadoop:3.3.6
@@ -134,14 +131,14 @@ services:
       - HADOOP_HOME=/opt/hadoop
       - DATANODE_HOSTNAME=datanode2
     ports:
-      - "9876:9866"  # Data transfer
-      - "9874:9864"  # Web UI
-      - "9877:9867"  # IPC
+      - "9874:9864"
+      - "9876:9866"
+      - "9877:9867"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - dn2_data:/hadoop/dfs/data
     networks:
-      - app-network
+      - hadoop-network
 
   datanode3:
     image: apache/hadoop:3.3.6
@@ -152,51 +149,64 @@ services:
       - HADOOP_HOME=/opt/hadoop
       - DATANODE_HOSTNAME=datanode3
     ports:
-      - "9886:9866"  # Data transfer
-      - "9884:9864"  # Web UI
-      - "9887:9867"  # IPC
+      - "9884:9864"
+      - "9886:9866"
+      - "9887:9867"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
       - dn3_data:/hadoop/dfs/data
     networks:
-      - app-network
+      - hadoop-network
 
-  # ResourceManager
+  # YARN ResourceManagers
   resourcemanager1:
     image: apache/hadoop:3.3.6
     container_name: resourcemanager1
+    hostname: resourcemanager1
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     ports:
-      - "8030:8030"  # ResourceManager RPC
-      - "8088:8088"  # ResourceManager Web UI
+      - "8088:8088"
+      - "8030:8030"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
     networks:
-      - app-network
+      - hadoop-network
 
   resourcemanager2:
     image: apache/hadoop:3.3.6
     container_name: resourcemanager2
+    hostname: resourcemanager2
     command: ["tail", "-f", "/dev/null"]
     environment:
       - HADOOP_HOME=/opt/hadoop
     ports:
-      - "8031:8030"  # ResourceManager RPC
-      - "8089:8088"  # ResourceManager Web UI
+      - "8089:8088"
+      - "8031:8030"
     volumes:
-      - ./config:/opt/hadoop/etc/hadoop
+      - ./config:/opt/hadoop/etc/hadoop:ro
     networks:
-      - app-network
+      - hadoop-network
+
+  # HDFS Router
+  router:
+    image: apache/hadoop:3.3.6
+    container_name: router
+    hostname: router
+    command: ["tail", "-f", "/dev/null"]
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+    ports:
+      - "50071:50071"  # Router HTTP
+      - "8888:8888"    # Router RPC
+      - "8111:8111"    # Router Admin
+    volumes:
+      - ./config:/opt/hadoop/etc/hadoop:ro
+    networks:
+      - hadoop-network
 
 volumes:
-  zk1_data:
-  zk1_datalog:
-  zk2_data:
-  zk2_datalog:
-  zk3_data:
-  zk3_datalog:
   jn1_data:
   jn2_data:
   jn3_data:
@@ -207,6 +217,6 @@ volumes:
   dn3_data:
 
 networks:
-  app-network:
+  hadoop-network:
     external: true
     name: share-enterprise-ci

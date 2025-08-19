@@ -50,6 +50,22 @@ echo "Performing final status check..."
 echo "Cluster status:"
 docker-compose ps
 
+# Extra: ensure DataNodes are up
+echo "Checking DataNode processes after startup..."
+sleep 30
+if ! docker exec datanode1 ps aux | grep -q "datanode" || \
+   ! docker exec datanode2 ps aux | grep -q "datanode" || \
+   ! docker exec datanode3 ps aux | grep -q "datanode"; then
+  echo "Some DataNodes not running. Attempting to start via start-datanodes.sh..."
+  if [ -x ./start-datanodes.sh ]; then
+    ./start-datanodes.sh || true
+  else
+    echo "start-datanodes.sh not found or not executable. Skipping manual start."
+  fi
+fi
+
+
+
 echo ""
 echo "✅ Hadoop HA cluster started successfully!"
 echo ""

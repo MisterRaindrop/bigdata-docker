@@ -1,0 +1,124 @@
+services:
+  spark-iceberg:
+    image: tabulario/spark-iceberg
+    container_name: spark-iceberg
+    networks:
+      iceberg_net:
+      app-network:
+    depends_on:
+      - rest
+      - minio
+      - hive-metastore
+    volumes:
+      - ./warehouse:/home/iceberg/warehouse
+      - ./notebooks:/home/iceberg/notebooks/notebooks
+      - ./config/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ../hadoop-ha/config/core-site.xml:/opt/spark/hadoop-conf/core-site.xml:ro
+      - ../hadoop-ha/config/hdfs-site.xml:/opt/spark/hadoop-conf/hdfs-site.xml:ro
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - HADOOP_CONF_DIR=/opt/spark/hadoop-conf
+    ports:
+      - 18888:8888
+      - 8080:8080
+      - 10000:10000
+      - 10001:10001
+  rest:
+    image: apache/iceberg-rest-fixture
+    container_name: iceberg-rest
+    networks:
+      iceberg_net:
+      app-network:
+    ports:
+      - 8181:8181
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - CATALOG_WAREHOUSE=s3://warehouse/
+      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+      - CATALOG_S3_ENDPOINT=http://minio:9000
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_DOMAIN=minio
+    networks:
+      iceberg_net:
+        aliases:
+          - warehouse.minio
+      app-network:
+    ports:
+      - 9001:9001
+      - 9000:9000
+    command: ["server", "/data", "--console-address", ":9001"]
+  postgres:
+    image: postgres:16
+    container_name: hive-metastore-postgres
+    environment:
+      - POSTGRES_DB=metastore
+      - POSTGRES_USER=hive
+      - POSTGRES_PASSWORD=hivepass123
+    ports:
+      - 5432:5432
+    networks:
+      iceberg_net:
+      app-network:
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+  hive-metastore:
+    image: naushadh/hive-metastore
+    container_name: hive-metastore
+    environment:
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_DB=metastore
+      - DATABASE_USER=hive
+      - DATABASE_PASSWORD=hivepass123
+      - DATABASE_DRIVER=org.postgresql.Driver
+      - DATABASE_TYPE=postgres
+      - DATABASE_TYPE_JDBC=postgresql
+      - S3_BUCKET=warehouse
+      - S3_PREFIX=hive
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+    depends_on:
+      - postgres
+      - minio
+    ports:
+      - 9083:9083
+    networks:
+      iceberg_net:
+      app-network:
+    volumes: []
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      iceberg_net:
+      app-network:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    entrypoint: |
+      /bin/sh -c "
+      until (/usr/bin/mc alias set minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc rm -r --force minio/warehouse;
+      /usr/bin/mc mb minio/warehouse;
+      /usr/bin/mc policy set public minio/warehouse;
+      tail -f /dev/null
+      "
+networks:
+  iceberg_net:
+  app-network:
+    external: true
+    name: share-enterprise-ci
+
