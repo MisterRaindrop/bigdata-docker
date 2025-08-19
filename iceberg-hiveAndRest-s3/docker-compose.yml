@@ -79,8 +79,17 @@ services:
       - DATABASE_DB=metastore
       - DATABASE_USER=hive
       - DATABASE_PASSWORD=hivepass123
+      - DATABASE_DRIVER=org.postgresql.Driver
+      - DATABASE_TYPE=postgres
+      - DATABASE_TYPE_JDBC=postgresql
+      - S3_BUCKET=warehouse
+      - S3_PREFIX=hive
+      - S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
     depends_on:
       - postgres
+      - minio
     ports:
       - 9083:9083
     networks:
