@@ -1,0 +1,36 @@
+server:
+  applicationConnectors:
+    - type: http
+      port: 8181
+  adminConnectors:
+    - type: http
+      port: 8182
+
+metaStoreManager:
+  type: in-memory
+
+oauth2:
+  type: test
+
+callContextResolver:
+  type: default
+  defaultRealm: default-realm
+
+realmContextResolver:
+  type: default
+
+authenticator:
+  type: test
+  
+featureConfiguration:
+  SUPPORTED_CATALOG_STORAGE_TYPES:
+    - S3
+
+defaultCatalogStorageConfig:
+  storageType: S3
+  allowedLocations:
+    - "s3://warehouse/"
+  s3Config:
+    endpoint: "http://minio:9000"
+    pathStyleAccess: true
+    region: "us-east-1"
