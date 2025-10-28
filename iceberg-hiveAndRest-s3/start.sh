@@ -22,6 +22,25 @@ mkdir -p "$SCRIPT_DIR/warehouse" \
 	"$SCRIPT_DIR/postgres-data" \
 	"$SCRIPT_DIR/jars"
 
+echo "[+] Checking and downloading required JAR packages..."
+JARS_DIR="$SCRIPT_DIR/jars"
+HADOOP_AWS_JAR="$JARS_DIR/hadoop-aws-3.3.0.jar"
+AWS_SDK_JAR="$JARS_DIR/aws-java-sdk-bundle-1.11.901.jar"
+
+if [[ ! -f "$HADOOP_AWS_JAR" ]]; then
+	echo "    downloading hadoop-aws-3.3.0.jar..."
+	wget -q -O "$HADOOP_AWS_JAR" https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.0/hadoop-aws-3.3.0.jar
+else
+	echo "    hadoop-aws-3.3.0.jar already exists"
+fi
+
+if [[ ! -f "$AWS_SDK_JAR" ]]; then
+	echo "    downloading aws-java-sdk-bundle-1.11.901.jar..."
+	wget -q -O "$AWS_SDK_JAR" https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.11.901/aws-java-sdk-bundle-1.11.901.jar
+else
+	echo "    aws-java-sdk-bundle-1.11.901.jar already exists"
+fi
+
 if [[ "$WITH_HADOOP" == "true" ]]; then
 	HADOOP_DIR="$SCRIPT_DIR/../hadoop-ha"
 	HADOOP_START_SCRIPT="$HADOOP_DIR/start-cluster.sh"
