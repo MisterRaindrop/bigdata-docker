@@ -53,7 +53,6 @@ services:
       - "5005:5005"
     volumes:
       - .:/opt/polaris
-      - ./aws-config:/home/polaris/.aws/config:ro
     depends_on:
       minio:
         condition: service_healthy

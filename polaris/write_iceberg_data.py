@@ -40,7 +40,7 @@ def write_sample_data():
             "uri": "http://localhost:8181/api/catalog/v1",
             "credential": "root:s3cr3t",
             "warehouse": "polaris",
-            "s3.endpoint": "http://localhost:9000",
+            "s3.endpoint": "http://minio:9000",
             "s3.access-key-id": "minio_root",
             "s3.secret-access-key": "m1n1opwd",
             "s3.path-style-access": "true"
