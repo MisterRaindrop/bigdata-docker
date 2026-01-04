@@ -9,7 +9,7 @@ export PATH=$PATH:${HADOOP_HOME}/bin:${HIVE_HOME}/bin:${SPARK_HOME}/bin
 
 export MINIO_ROOT_USER=${MINIO_ROOT_USER:-minio}
 export MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minio123}
-export S3_ENDPOINT=${S3_ENDPOINT:-http://localhost:9000}
+export S3_ENDPOINT=${S3_ENDPOINT:-http://localhost:9100}
 export S3_ACCESS_KEY=${S3_ACCESS_KEY:-${MINIO_ROOT_USER}}
 export S3_SECRET_KEY=${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
 export WAREHOUSE_S3=${WAREHOUSE_S3:-s3a://warehouse/}
@@ -160,9 +160,9 @@ hdfs --daemon start datanode
 
 echo "[stage] start MinIO" | tee -a "${LOG_DIR}/startup.log"
 mkdir -p /data/warehouse
-minio server /data/warehouse --address ":9000" --console-address ":9001" >"${LOG_DIR}/minio.log" 2>&1 &
+minio server /data/warehouse --address ":9100" --console-address ":9001" >"${LOG_DIR}/minio.log" 2>&1 &
 sleep 3
-mc alias set local http://127.0.0.1:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null
+mc alias set local http://127.0.0.1:9100 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null
 mc mb -p local/warehouse >/dev/null || true
 
 echo "[stage] init Hive schema" | tee -a "${LOG_DIR}/startup.log"

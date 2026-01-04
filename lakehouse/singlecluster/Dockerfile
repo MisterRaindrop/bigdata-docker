@@ -1,20 +1,23 @@
-FROM openjdk:11-jre-slim
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 ENV HADOOP_VERSION=3.0.0 \
     HIVE_VERSION=3.0.0 \
     SPARK_VERSION=3.3.3 \
     HUDI_VERSION=0.11.1 \
     ICEBERG_VERSION=1.1.0 \
-    JAVA_HOME=/usr/local/openjdk-11 \
+    JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 \
     HADOOP_HOME=/opt/hadoop \
     HIVE_HOME=/opt/hive \
-    SPARK_HOME=/opt/spark \
-    PATH=$PATH:/opt/hadoop/bin:/opt/hive/bin:/opt/spark/bin
+    SPARK_HOME=/opt/spark
+
+ENV PATH=$PATH:$JAVA_HOME/bin:/opt/hadoop/bin:/opt/hive/bin:/opt/spark/bin
 
 # Base tools and MinIO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash ca-certificates curl wget procps netcat-openbsd lsof python3 \
-    postgresql postgresql-contrib sudo gnupg \
+    postgresql postgresql-contrib sudo gnupg openjdk-11-jdk-headless \
  && rm -rf /var/lib/apt/lists/*
 
 RUN curl -L https://dl.min.io/server/minio/release/linux-amd64/minio -o /usr/local/bin/minio \
@@ -52,6 +55,6 @@ RUN chmod +x /opt/start-all.sh /opt/init-metastore.sh
 # Data directories
 RUN mkdir -p /data/hdfs/nn /data/hdfs/dn /data/metastore-db /data/warehouse /var/log/lakehouse
 
-EXPOSE 9870 9864 9083 10000 9000 9001 7077 8080 18080 8181 5432
+EXPOSE 9870 9864 9083 10000 9100 9001 7077 8080 18080 8181 5432
 ENTRYPOINT ["/opt/start-all.sh"]
 
