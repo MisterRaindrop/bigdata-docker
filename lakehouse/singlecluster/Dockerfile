@@ -55,6 +55,6 @@ RUN chmod +x /opt/start-all.sh /opt/init-metastore.sh
 # Data directories
 RUN mkdir -p /data/hdfs/nn /data/hdfs/dn /data/metastore-db /data/warehouse /var/log/lakehouse
 
-EXPOSE 9870 9864 9083 10000 9100 9001 7077 8080 18080 8181 5432
+EXPOSE 9870 9864 9083 10000 9100 9200 7077 8080 18080 8181 5432
 ENTRYPOINT ["/opt/start-all.sh"]
 

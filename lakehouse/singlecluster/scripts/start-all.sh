@@ -160,7 +160,7 @@ hdfs --daemon start datanode
 
 echo "[stage] start MinIO" | tee -a "${LOG_DIR}/startup.log"
 mkdir -p /data/warehouse
-minio server /data/warehouse --address ":9100" --console-address ":9001" >"${LOG_DIR}/minio.log" 2>&1 &
+minio server /data/warehouse --address ":9100" --console-address ":9200" >"${LOG_DIR}/minio.log" 2>&1 &
 sleep 3
 mc alias set local http://127.0.0.1:9100 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null
 mc mb -p local/warehouse >/dev/null || true
