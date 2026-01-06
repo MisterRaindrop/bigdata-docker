@@ -37,8 +37,8 @@ The container entrypoint automatically runs `/opt/start-all.sh`, which configure
 | HiveServer2        | `jdbc:hive2://localhost:10000` | Beeline / JDBC access    |
 | Spark Master UI    | `http://localhost:8080` | Job overview                    |
 | Spark History UI   | `http://localhost:18080` | Completed jobs                  |
-| MinIO API          | `http://localhost:9000` | S3 endpoint (`admin/password`)  |
-| MinIO Console      | `http://localhost:9100` | Web console                     |
+| MinIO API          | `http://localhost:9100` | S3 endpoint (`admin/password`)  |
+| MinIO Console      | `http://localhost:9200` | Web console                     |
 
 ## Useful Commands
 
