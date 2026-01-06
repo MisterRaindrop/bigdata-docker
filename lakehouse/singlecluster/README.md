@@ -55,6 +55,36 @@ The container entrypoint automatically runs `/opt/start-all.sh`, which configure
   docker compose exec lakehouse mc ls local/warehouse
   ```
 
+## Polaris CLI (quick use)
+
+- Install jq inside the container (one-time):
+  ```bash
+  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/install_jq.sh
+  ```
+- List catalogs via Polaris CLI script:
+  ```bash
+  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/polaris_cli.sh list_catalogs
+  ```
+  This script calls Polaris REST endpoints using the credentials/endpoints defined in the script.
+- Create a catalog (example):
+  ```bash
+  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/polaris_cli.sh create_catalog polaris s3://warehouse
+  ```
+  Arguments: `<catalog_name> <default_base_location>`
+- Create a namespace (example):
+  ```bash
+  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/polaris_cli.sh create_namespace polaris default
+  ```
+  Arguments: `<catalog_name> <namespace>`
+
+## Install dependencies inside container
+
+- `scripts/install_jq.sh` installs `jq` for JSON parsing (required by `polaris_cli.sh`).
+- Run it once after the container is up:
+  ```bash
+  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/install_jq.sh
+  ```
+
 ## Shutdown
 
 Stop and remove the container, keeping the persistent volumes under `data/`:
