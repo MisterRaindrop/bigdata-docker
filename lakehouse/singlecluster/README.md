@@ -1,96 +1,205 @@
 # Lakehouse Single Cluster
 
-This directory contains a self-contained Docker image that bundles the main data lakehouse components for development or demo use:
+A complete data lakehouse environment in Docker for development and testing.
 
-- Hadoop 3.x NameNode and DataNode
-- Hive 3.x Metastore + HiveServer2
-- Spark 3.3 master, worker, and history server with Iceberg and Hudi bundles
-- MinIO object storage (S3-compatible) that backs the Hive/Spark warehouse
+## What's Included
+
+| Component | Description |
+|-----------|-------------|
+| **Hadoop HDFS** | Distributed file system (NameNode + DataNode) |
+| **Hive** | Metastore + HiveServer2 for SQL queries |
+| **Spark 3.3** | Master, Worker, History Server with Iceberg/Hudi support |
+| **MinIO** | S3-compatible object storage |
+| **Apache Polaris** | Iceberg REST Catalog for table management |
 
 ## Prerequisites
 
 - Docker Engine 20.10+ and Docker Compose v2
-- The external Docker network `share-enterprise-ci` (create it if it does not exist: `docker network create share-enterprise-ci`)
-- At least 8 GB RAM available for the container
+- At least 8 GB RAM
+- Create the Docker network (run once):
+  ```bash
+  docker network create share-enterprise-ci
+  ```
 
 ## Quick Start
 
-1. From `lakehouse/singlecluster`, build the image and launch the container:
-   ```bash
-   docker compose build
-   docker compose up -d
-   ```
-2. Follow the bootstrap log to ensure HDFS, Hive, Spark, and MinIO are started:
-   ```bash
-   docker compose logs -f lakehouse
-   ```
-3. When the log shows `[ready] services started`, the stack is available. Data and logs are stored under `./data/`.
+### Step 1: Build and Start
 
-The container entrypoint automatically runs `/opt/start-all.sh`, which configures Hadoop/Hive/Spark, formats HDFS if needed, brings up PostgreSQL for the metastore, and seeds MinIO with the `warehouse` bucket.
+```bash
+cd lakehouse/singlecluster
+docker compose build
+docker compose up -d
+```
+
+### Step 2: Start Services
+
+Enter the lakehouse container and start all services:
+```bash
+docker compose exec lakehouse bash
+/opt/start-all.sh
+```
+
+Enter the polaris container and start Polaris:
+```bash
+docker compose exec polaris bash
+./bin/server start
+```
+
+### Step 3: Setup Polaris Catalog
+
+Inside the lakehouse container:
+```bash
+# Install jq (required, run once)
+/workspace/scripts/install_jq.sh
+
+# Create catalog and namespace
+/workspace/scripts/polaris_cli.sh create-namespace
+
+# Grant DROP TABLE WITH PURGE permission
+/workspace/scripts/polaris_cli.sh grant-drop-with-purge
+```
+
+Done! Your lakehouse is ready.
 
 ## Services and Ports
 
-| Service            | URL / Port | Notes                                |
-|--------------------|------------|--------------------------------------|
-| HDFS NameNode UI   | `http://localhost:9870` | View HDFS status                |
-| Hive Metastore     | `thrift://localhost:9083` | Used internally by Hive/Spark |
-| HiveServer2        | `jdbc:hive2://localhost:10000` | Beeline / JDBC access    |
-| Spark Master UI    | `http://localhost:8080` | Job overview                    |
-| Spark History UI   | `http://localhost:18080` | Completed jobs                  |
-| MinIO API          | `http://localhost:9100` | S3 endpoint (`admin/password`)  |
-| MinIO Console      | `http://localhost:9200` | Web console                     |
+| Service | Port | URL | Credentials |
+|---------|------|-----|-------------|
+| HDFS NameNode UI | 9870 | http://localhost:9870 | - |
+| HDFS DataNode | 9864 | - | - |
+| Hive Metastore | 9083 | thrift://localhost:9083 | - |
+| HiveServer2 | 10000 | jdbc:hive2://localhost:10000 | - |
+| Spark Master UI | 8080 | http://localhost:8080 | - |
+| Spark History | 18080 | http://localhost:18080 | - |
+| MinIO API | 9100 | http://localhost:9100 | admin / password |
+| MinIO Console | 9200 | http://localhost:9200 | admin / password |
+| Polaris API | 18181 | http://localhost:18181 | root / s3cr3t |
+| Polaris Health | 18182 | http://localhost:18182/q/health | - |
 
-## Useful Commands
+## Polaris CLI Commands
 
-- Open a Hive shell via Beeline:
-  ```bash
-  docker compose exec lakehouse beeline -u jdbc:hive2://localhost:10000 -n hive
-  ```
-- Run Spark SQL:
-  ```bash
-  docker compose exec lakehouse spark-sql
-  ```
-- Interact with MinIO using the bundled `mc` client (alias already configured as `local`):
-  ```bash
-  docker compose exec lakehouse mc ls local/warehouse
-  ```
+All commands run inside the lakehouse container:
 
-## Polaris CLI (quick use)
+```bash
+# Enter container
+docker compose exec lakehouse bash
+cd /workspace/scripts
+```
 
-- Install jq inside the container (one-time):
-  ```bash
-  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/install_jq.sh
-  ```
-- List catalogs via Polaris CLI script:
-  ```bash
-  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/polaris_cli.sh list_catalogs
-  ```
-  This script calls Polaris REST endpoints using the credentials/endpoints defined in the script.
-- Create a catalog (example):
-  ```bash
-  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/polaris_cli.sh create_catalog polaris s3://warehouse
-  ```
-  Arguments: `<catalog_name> <default_base_location>`
-- Create a namespace (example):
-  ```bash
-  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/polaris_cli.sh create_namespace polaris default
-  ```
-  Arguments: `<catalog_name> <namespace>`
+| Command | Description |
+|---------|-------------|
+| `./polaris_cli.sh create-catalog` | Create a catalog |
+| `./polaris_cli.sh create-namespace` | Create catalog + namespace |
+| `./polaris_cli.sh list-catalogs` | List all catalogs |
+| `./polaris_cli.sh list-namespaces` | List namespaces in catalog |
+| `./polaris_cli.sh list-catalog-roles` | List catalog roles |
+| `./polaris_cli.sh list-grants` | List permissions of catalog role |
+| `./polaris_cli.sh grant-drop-with-purge` | Grant DROP TABLE WITH PURGE permission |
+| `./polaris_cli.sh delete-catalog` | Delete catalog (fails if not empty) |
+| `./polaris_cli.sh delete-catalog-force` | Delete catalog + all tables/namespaces |
 
-## Install dependencies inside container
+### Environment Variables
 
-- `scripts/install_jq.sh` installs `jq` for JSON parsing (required by `polaris_cli.sh`).
-- Run it once after the container is up:
-  ```bash
-  docker compose exec lakehouse /workspace/lakehouse/singlecluster/scripts/install_jq.sh
-  ```
+Override defaults by setting these before running commands:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_HOST` | http://singlecluster-polaris-1:8181 | Polaris API endpoint |
+| `REALM` | POLARIS | Polaris realm |
+| `CATALOG_NAME` | polaris_default_catalog | Catalog name |
+| `NS_NAME` | public | Namespace name |
+| `ROOT_CLIENT_ID` | root | Polaris client ID |
+| `ROOT_CLIENT_SECRET` | s3cr3t | Polaris client secret |
+| `S3_LOCATION` | s3://warehouse | Default S3 location |
+| `S3_ENDPOINT` | http://lakehouse:9100 | MinIO endpoint |
+| `S3_ACCESS_KEY` | admin | MinIO access key |
+| `S3_SECRET_KEY` | password | MinIO secret key |
+
+Example with custom values:
+```bash
+CATALOG_NAME=my_catalog NS_NAME=my_ns ./polaris_cli.sh create-namespace
+```
+
+## Using Polaris with Java/Spark
+
+Connect to Polaris from your Iceberg client:
+
+```java
+Map<String, String> props = new HashMap<>();
+props.put("uri", "http://localhost:18181/api/catalog");
+props.put("credential", "root:s3cr3t");
+props.put("scope", "PRINCIPAL_ROLE:ALL");
+props.put("header.Polaris-Realm", "POLARIS");
+props.put("warehouse", "polaris_default_catalog");
+
+RESTCatalog catalog = new RESTCatalog();
+catalog.initialize("polaris", props);
+```
+
+The catalog automatically provides S3 credentials to clients - no need to configure MinIO access in your code.
+
+## Common Commands
+
+### Hive
+```bash
+docker compose exec lakehouse beeline -u jdbc:hive2://localhost:10000 -n hive
+```
+
+### Spark SQL
+```bash
+docker compose exec lakehouse spark-sql
+```
+
+### MinIO (mc client)
+```bash
+docker compose exec lakehouse mc ls local/warehouse
+```
 
 ## Shutdown
 
-Stop and remove the container, keeping the persistent volumes under `data/`:
+Stop containers (data is preserved in `./data/`):
 ```bash
 docker compose down
 ```
-If you want a clean slate, remove the data directories before starting again.
 
+Clean restart (delete all data):
+```bash
+docker compose down
+rm -rf ./data/*
+docker compose up -d
+```
 
+## Troubleshooting
+
+### "DROP_TABLE_WITH_PURGE not authorized"
+Run the grant command:
+```bash
+./polaris_cli.sh grant-drop-with-purge
+```
+
+### "Access Key Id does not exist"
+The catalog may be missing S3 credentials. Recreate it:
+```bash
+./polaris_cli.sh delete-catalog-force
+./polaris_cli.sh create-namespace
+./polaris_cli.sh grant-drop-with-purge
+```
+
+### Polaris not responding
+Check if the server is running:
+```bash
+docker compose exec polaris ps aux | grep java
+```
+If not, start it:
+```bash
+docker compose exec polaris ./bin/server start
+```
+
+### View logs
+```bash
+# Lakehouse services
+docker compose logs -f lakehouse
+
+# Polaris
+docker compose logs -f polaris
+```

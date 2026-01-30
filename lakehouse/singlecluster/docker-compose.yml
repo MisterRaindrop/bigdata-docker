@@ -7,7 +7,7 @@ services:
     container_name: lakehouse
     hostname: lakehouse
     environment:
-      - HDFS_NN_URI=hdfs://localhost:8020
+      - HDFS_NN_URI=hdfs://lakehouse:8020
       - METASTORE_DB_USER=hive
       - METASTORE_DB_PASS=
       - METASTORE_DB_NAME=metastore
@@ -17,6 +17,7 @@ services:
       - WAREHOUSE_S3=s3a://warehouse
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password
+      - AWS_REGION=us-east-1
     ports:
       - "9870:9870"   # HDFS NN UI
       - "9864:9864"   # HDFS DN
@@ -41,13 +42,16 @@ services:
   polaris:
     build:
       context: ./thirdparty/apache-polaris
-    image: apache-polaris:1.2.0-local
+    image: apache-polaris:1.3.0-local
     depends_on:
       - lakehouse
     environment:
       JAVA_DEBUG: "false"
       JAVA_DEBUG_PORT: "*:5005"
-      AWS_REGION: us-west-2
+      # Enable DROP TABLE WITH PURGE feature
+      DROP_WITH_PURGE_ENABLED: "true"
+      POLARIS_FEATURES_DEFAULTS_DROP_WITH_PURGE_ENABLED: "true"
+      AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: password
       AWS_ENDPOINT_URL: http://lakehouse:9100

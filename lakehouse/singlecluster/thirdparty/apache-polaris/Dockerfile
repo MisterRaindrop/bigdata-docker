@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ARG POLARIS_VERSION=1.2.0-incubating
+ARG POLARIS_VERSION=1.3.0-incubating
 ARG POLARIS_TGZ=https://downloads.apache.org/incubator/polaris/${POLARIS_VERSION}/polaris-bin-${POLARIS_VERSION}.tgz
 ARG POLARIS_DIR=polaris-bin-${POLARIS_VERSION}
 
