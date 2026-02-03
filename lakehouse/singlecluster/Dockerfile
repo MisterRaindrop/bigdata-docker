@@ -2,12 +2,12 @@ FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ENV HADOOP_VERSION=3.0.0 \
-    HIVE_VERSION=3.0.0 \
+ENV HADOOP_VERSION=3.3.6 \
+    HIVE_VERSION=3.1.3 \
     SPARK_VERSION=3.3.3 \
     HUDI_VERSION=0.11.1 \
     ICEBERG_VERSION=1.1.0 \
-    JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 \
+    JAVA_HOME=/opt/java/openjdk \
     HADOOP_HOME=/opt/hadoop \
     HIVE_HOME=/opt/hive \
     SPARK_HOME=/opt/spark
@@ -17,8 +17,16 @@ ENV PATH=$PATH:$JAVA_HOME/bin:/opt/hadoop/bin:/opt/hive/bin:/opt/spark/bin
 # Base tools and MinIO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash ca-certificates curl wget procps netcat-openbsd lsof python3 \
-    postgresql postgresql-contrib sudo gnupg openjdk-11-jdk-headless \
+    postgresql postgresql-contrib sudo gnupg \
  && rm -rf /var/lib/apt/lists/*
+
+# Java 8 (Temurin) for Hive CLI compatibility
+RUN mkdir -p /opt/java \
+ && curl -fSL https://api.adoptium.net/v3/binary/latest/8/ga/linux/x64/jdk/hotspot/normal/eclipse -o /tmp/jdk8.tar.gz \
+ && tar -xzf /tmp/jdk8.tar.gz -C /opt/java \
+ && JDK_DIR=$(ls -d /opt/java/jdk* | head -n1) \
+ && ln -s "${JDK_DIR}" /opt/java/openjdk \
+ && rm /tmp/jdk8.tar.gz
 
 RUN curl -L https://dl.min.io/server/minio/release/linux-amd64/minio -o /usr/local/bin/minio \
  && chmod +x /usr/local/bin/minio \
@@ -26,17 +34,20 @@ RUN curl -L https://dl.min.io/server/minio/release/linux-amd64/minio -o /usr/loc
  && chmod +x /usr/local/bin/mc
 
 # Hadoop
-RUN curl -fSL https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz \
+RUN curl -fSL --retry 5 --retry-delay 10 --retry-max-time 120 \
+    https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz \
   | tar -xz -C /opt \
  && ln -s /opt/hadoop-${HADOOP_VERSION} ${HADOOP_HOME}
 
 # Hive
-RUN curl -fSL https://archive.apache.org/dist/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz \
+RUN curl -fSL --retry 5 --retry-delay 10 --retry-max-time 120 \
+    https://archive.apache.org/dist/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz \
   | tar -xz -C /opt \
  && ln -s /opt/apache-hive-${HIVE_VERSION}-bin ${HIVE_HOME}
 
 # Spark
-RUN curl -fSL https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz \
+RUN curl -fSL --retry 5 --retry-delay 10 --retry-max-time 120 \
+    https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz \
   | tar -xz -C /opt \
  && ln -s /opt/spark-${SPARK_VERSION}-bin-hadoop3 ${SPARK_HOME}
 
@@ -45,7 +56,7 @@ RUN mkdir -p /opt/jars && cd /opt/jars && \
     curl -fSLO https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3-bundle_2.12/${HUDI_VERSION}/hudi-spark3-bundle_2.12-${HUDI_VERSION}.jar && \
     curl -fSLO https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.3_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-3.3_2.12-${ICEBERG_VERSION}.jar && \
     curl -fSLO https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_VERSION}/hadoop-aws-${HADOOP_VERSION}.jar && \
-    curl -fSLO https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.11.1026/aws-java-sdk-bundle-1.11.1026.jar
+    curl -fSLO https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar
 
 # Startup scripts
 COPY scripts/start-all.sh /opt/start-all.sh

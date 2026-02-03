@@ -13,6 +13,11 @@ export S3_ENDPOINT=${S3_ENDPOINT:-http://localhost:9100}
 export S3_ACCESS_KEY=${S3_ACCESS_KEY:-${MINIO_ROOT_USER}}
 export S3_SECRET_KEY=${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
 export WAREHOUSE_S3=${WAREHOUSE_S3:-s3a://warehouse/}
+WAREHOUSE_DIR=${WAREHOUSE_S3}
+if [ -z "${WAREHOUSE_DIR}" ]; then
+  WAREHOUSE_DIR="s3a://warehouse/"
+fi
+HIVE_WAREHOUSE_DIR="hdfs://lakehouse:8020/warehouse"
 export HDFS_NN_URI=${HDFS_NN_URI:-hdfs://localhost:8020}
 export METASTORE_DB_USER=${METASTORE_DB_USER:-hive}
 export METASTORE_DB_PASS=${METASTORE_DB_PASS:-hivepw}
@@ -48,6 +53,18 @@ cat > "${HADOOP_HOME}/etc/hadoop/core-site.xml" <<EOF
   <property>
     <name>fs.s3a.path.style.access</name>
     <value>true</value>
+  </property>
+  <property>
+    <name>fs.s3a.aws.credentials.provider</name>
+    <value>org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider</value>
+  </property>
+  <property>
+    <name>fs.s3a.impl</name>
+    <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+  </property>
+  <property>
+    <name>fs.s3a.connection.ssl.enabled</name>
+    <value>false</value>
   </property>
 </configuration>
 EOF
@@ -103,7 +120,7 @@ cat > "${HIVE_CONF_DIR}/hive-site.xml" <<EOF
   </property>
   <property>
     <name>hive.metastore.warehouse.dir</name>
-    <value>${WAREHOUSE_S3}</value>
+    <value>${HIVE_WAREHOUSE_DIR}</value>
   </property>
   <property>
     <name>hive.support.concurrency</name>
@@ -128,23 +145,36 @@ mkdir -p "${SPARK_HOME}/conf"
 cat > "${SPARK_HOME}/conf/spark-defaults.conf" <<EOF
 spark.master                     spark://localhost:7077
 spark.eventLog.enabled           true
-spark.eventLog.dir               ${WAREHOUSE_S3}/spark-events
-spark.history.fs.logDirectory    ${WAREHOUSE_S3}/spark-events
+spark.eventLog.dir               ${WAREHOUSE_DIR}/spark-events
+spark.history.fs.logDirectory    ${WAREHOUSE_DIR}/spark-events
 spark.sql.catalogImplementation  hive
 spark.sql.extensions             org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
 spark.sql.catalog.spark_catalog  org.apache.iceberg.spark.SparkSessionCatalog
 spark.sql.catalog.spark_catalog.type hive
-spark.sql.catalog.spark_catalog.warehouse ${WAREHOUSE_S3}
+spark.sql.catalog.spark_catalog.warehouse ${WAREHOUSE_DIR}
 spark.hadoop.fs.s3a.endpoint     ${S3_ENDPOINT}
 spark.hadoop.fs.s3a.path.style.access true
 spark.hadoop.fs.s3a.access.key   ${S3_ACCESS_KEY}
 spark.hadoop.fs.s3a.secret.key   ${S3_SECRET_KEY}
+spark.hadoop.fs.s3a.aws.credentials.provider org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+spark.hadoop.fs.s3a.impl         org.apache.hadoop.fs.s3a.S3AFileSystem
+spark.hadoop.fs.s3a.connection.ssl.enabled false
 spark.hadoop.fs.defaultFS        ${HDFS_NN_URI}
 EOF
 
 echo "[stage] start PostgreSQL" | tee -a "${LOG_DIR}/startup.log"
 PG_VERSION=$(ls /etc/postgresql | head -n1)
 pg_ctlcluster "${PG_VERSION}" main start
+PG_HBA="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
+PG_CONF="/etc/postgresql/${PG_VERSION}/main/postgresql.conf"
+# Hive's bundled PostgreSQL JDBC driver doesn't support SCRAM (auth type 10).
+sed -i.bak -E 's/^(local\s+all\s+all\s+)scram-sha-256/\1md5/' "${PG_HBA}"
+sed -i.bak -E 's/^(host\s+all\s+all\s+127\.0\.0\.1\/32\s+)scram-sha-256/\1md5/' "${PG_HBA}"
+sed -i.bak -E 's/^(host\s+all\s+all\s+::1\/128\s+)scram-sha-256/\1md5/' "${PG_HBA}"
+if ! grep -q '^password_encryption\s*=\s*md5' "${PG_CONF}"; then
+  sed -i.bak -E 's/^#?\s*password_encryption\s*=.*/password_encryption = md5/' "${PG_CONF}"
+fi
+pg_ctlcluster "${PG_VERSION}" main reload
 sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${METASTORE_DB_USER}'" | grep -q 1 || \
   sudo -u postgres psql -c "CREATE USER ${METASTORE_DB_USER} WITH PASSWORD '${METASTORE_DB_PASS}'"
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='${METASTORE_DB_NAME}'" | grep -q 1 || \
@@ -157,6 +187,9 @@ if [ ! -f /data/hdfs/nn/current/VERSION ]; then
 fi
 hdfs --daemon start namenode
 hdfs --daemon start datanode
+sleep 10
+hdfs dfs -mkdir -p ${HIVE_WAREHOUSE_DIR}
+hdfs dfs -chmod 777 ${HIVE_WAREHOUSE_DIR}
 
 echo "[stage] start MinIO" | tee -a "${LOG_DIR}/startup.log"
 mkdir -p /data/warehouse
